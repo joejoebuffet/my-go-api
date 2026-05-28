@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         REGISTRY_URL = "ghcr.io" 
-        IMAGE_NAME   = "billing-api-go"
+        IMAGE_NAME   = "joejoebuffet/billing-api-go"
         IMAGE_TAG    = "${BUILD_NUMBER}"
         REGISTRY_CREDS_ID = "git-token" 
     }

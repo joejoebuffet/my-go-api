@@ -27,7 +27,7 @@ func (ctrl *HelloController) GetAccountHolder(c *gin.Context) {
 	fmt.Printf("DEBUG INPUT: Received accountNo = [%s]\n", accountNo)
 
 	// Change this line:
-	sqlQuery := "SELECT gl_segment FROM bill_media WHERE rec_id = '1' AND account_no = $1"
+	sqlQuery := "SELECT gl_segment FROM bill_media WHERE rec_id = '3' AND account_no = $1"
 
 	var holderName string
 	// QueryRow handles single-record lookups. Parameter types are handled implicitly by Go.

@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'podman-node' }
 
     environment {
         REGISTRY_URL = "ghcr.io" 

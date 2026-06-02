@@ -1,6 +1,11 @@
 pipeline {
     agent { label 'podman-node' }
 
+    triggers {
+        // Poll SCM every 5 minutes, Mon-Fri, between 9:00 AM and 5:59 PM (09:00 - 17:59)
+        pollSCM('H/5 9-17 * * 1-5')
+    }
+    
     environment {
         REGISTRY_URL = "ghcr.io" 
         IMAGE_NAME   = "joejoebuffet/billing-api-go"

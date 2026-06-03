@@ -1,7 +1,5 @@
 pipeline {
     agent { label 'podman-node' }
-
-    // No automation triggers. You control the execution.
     
     environment {
         REGISTRY_URL = "ghcr.io" 
@@ -13,15 +11,15 @@ pipeline {
     stages {
         stage('Deploy to Debian Target') {
             steps {
-                echo "Deploying container to Debian target..."
+                echo "Recycling container on Debian target..."
                 
                 sh "podman stop billing-api || true"
                 sh "podman rm billing-api || true"
                 
-                // Pulls the image that you know is ready because you checked GitHub Actions
                 sh "podman pull ${REGISTRY_URL}/${IMAGE_NAME}:latest"
                 
-                sh "podman run -d --name billing-api -p 8080:8080 -e DATABASE_HOST=${DB_HOST} -e DATABASE_PORT=${DB_PORT} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+                // FIXED: Changed internal container port from 8080 to 8081
+                sh "podman run -d --name billing-api -p 8080:8081 -e DATABASE_HOST=${DB_HOST} -e DATABASE_PORT=${DB_PORT} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
             }
         }
 
@@ -29,7 +27,8 @@ pipeline {
             steps {
                 echo "Verifying API health status..."
                 sh "sleep 3" 
-                sh "curl -f http://localhost:8080/health || exit 1"
+                // This stays 8080 because it hits the VM's external port
+                sh "curl -f http://localhost:8080/hello || exit 1"
             }
         }
     }

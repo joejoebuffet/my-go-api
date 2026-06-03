@@ -1,0 +1,18 @@
+name: Jira Approval Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check-jira-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Jira Approval
+        uses: g2crowd/required-approvals-action@v1.7
+        with:
+          pr_title: ${{ github.event.pull_request.title }}
+          jira_user: ${{ secrets.JIRA_USER }}
+          jira_token: ${{ secrets.JIRA_TOKEN }}
+          jira_url: ${{ secrets.JIRA_URL }}
+          required_label: "approved-for-merge"

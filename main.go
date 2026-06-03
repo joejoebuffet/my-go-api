@@ -39,7 +39,7 @@ func main() {
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		log.Fatalf("Failed to initialize db: %v", err)
 	}
 	defer db.Close()
 

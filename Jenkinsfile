@@ -18,8 +18,15 @@ pipeline {
                 
                 sh "podman pull ${REGISTRY_URL}/${IMAGE_NAME}:latest"
                 
-                // FIXED: Changed internal container port from 8080 to 8081
-                sh "podman run -d --name billing-api -p 8080:8081 -e DATABASE_HOST=${DB_HOST} -e DATABASE_PORT=${DB_PORT} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+                // FIXED: Added JENKINS_NODE_COOKIE=dontKillMe and --restart=always
+                sh """
+                    export JENKINS_NODE_COOKIE=dontKillMe
+                    podman run -d --restart=always --name billing-api \
+                      -p 8080:8081 \
+                      -e DATABASE_HOST=${DB_HOST} \
+                      -e DATABASE_PORT=${DB_PORT} \
+                      ${REGISTRY_URL}/${IMAGE_NAME}:latest
+                """
             }
         }
 
@@ -27,7 +34,6 @@ pipeline {
             steps {
                 echo "Verifying API health status..."
                 sh "sleep 3" 
-                // This stays 8080 because it hits the VM's external port
                 sh "curl -f http://localhost:8080/hello || exit 1"
             }
         }

@@ -1,57 +1,36 @@
 pipeline {
     agent { label 'podman-node' }
 
-    triggers {
-        // Poll SCM every 5 minutes, Mon-Fri, between 9:00 AM and 5:59 PM (09:00 - 17:59)
-        pollSCM('H/5 9-17 * * 1-5')
-    }
+    // No automation triggers. You control the execution.
     
     environment {
         REGISTRY_URL = "ghcr.io" 
-        IMAGE_NAME   = "joejoebuffet/billing-api-go"
-        IMAGE_TAG    = "${BUILD_NUMBER}"
-        REGISTRY_CREDS_ID = "git-token" 
+        IMAGE_NAME   = "joejoebuffet/my-go-api"
+        DB_HOST      = "10.36.168.15"            
+        DB_PORT      = "5432"                 
     }
 
     stages {
-        stage('Checkout') {
+        stage('Deploy to Debian Target') {
             steps {
-                checkout scm
+                echo "Deploying container to Debian target..."
+                
+                sh "podman stop billing-api || true"
+                sh "podman rm billing-api || true"
+                
+                // Pulls the image that you know is ready because you checked GitHub Actions
+                sh "podman pull ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+                
+                sh "podman run -d --name billing-api -p 8080:8080 -e DATABASE_HOST=${DB_HOST} -e DATABASE_PORT=${DB_PORT} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
             }
         }
 
-        stage('Container Image Build') {
+        stage('Smoke Test') {
             steps {
-                echo "Building container image using Podman via Dockerfile..."
-                // Changed to sh and updated to Linux variable syntax ${VAR}
-                sh "podman build -t ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG} ."
-                sh "podman tag ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY_URL}/${IMAGE_NAME}:latest"
+                echo "Verifying API health status..."
+                sh "sleep 3" 
+                sh "curl -f http://localhost:8080/health || exit 1"
             }
-        }
-
-        stage('Registry Authentication & Push') {
-            steps {
-                echo "Logging into container registry and pushing images..."
-                withCredentials([usernamePassword(credentialsId: "${REGISTRY_CREDS_ID}", usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
-                    // Linux shell execution block
-                    sh "podman login -u ${REG_USER} -p ${REG_PASS} ${REGISTRY_URL}"
-                    
-                    echo "Pushing build version tag..."
-                    sh "podman push ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG}"
-                    
-                    echo "Pushing latest tag..."
-                    sh "podman push ${REGISTRY_URL}/${IMAGE_NAME}:latest"
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Cleaning up local build image copies from Jenkins agent workspace..."
-            // Using Linux shell fallback construct (|| true) instead of (|| exit 0)
-            sh "podman rmi ${REGISTRY_URL}/${IMAGE_NAME}:${IMAGE_TAG} || true"
-            sh "podman rmi ${REGISTRY_URL}/${IMAGE_NAME}:latest || true"
         }
     }
 }

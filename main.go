@@ -4,18 +4,25 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os" // Added to read environment variables
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv" // Added for local .env handling
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	// 1. Read environment variables passed from Podman/Jenkins
+	// 1. Try to load local .env file. If it doesn't exist (like on your Podman node),
+	// it fails silently and logs an info message without crashing.
+	if err := godotenv.Load(); err != nil {
+		log.Println("INFO: No .env file found. Relying on system environment variables.")
+	}
+
+	// 2. Read environment variables passed from Podman/Jenkins/Local .env
 	dbHost := os.Getenv("DATABASE_HOST")
 	dbPort := os.Getenv("DATABASE_PORT")
 
-	// 2. Set fallback defaults if they happen to be empty
+	// 3. Set fallback defaults if they happen to be empty
 	if dbHost == "" {
 		dbHost = "10.36.168.15" // Your Windows PC IP
 	}
@@ -23,7 +30,7 @@ func main() {
 		dbPort = "5432"
 	}
 
-	// 3. Dynamically build the connection string including host and port
+	// 4. Dynamically build the connection string including host and port
 	connStr := fmt.Sprintf(
 		"host=%s port=%s user=hello_api_user password=ApiSecurePass123! dbname=mdbase sslmode=disable",
 		dbHost,

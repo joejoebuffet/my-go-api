@@ -8,11 +8,11 @@ jobs:
   check-jira-approval:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Jira Approval
-        uses: g2crowd/required-approvals-action@v1.7
+      - name: Jira Lint
+        uses: cleartax/jira-lint@master
         with:
-          pr_title: ${{ github.event.pull_request.title }}
-          jira_user: ${{ secrets.JIRA_USER }}
-          jira_token: ${{ secrets.JIRA_TOKEN }}
-          jira_url: ${{ secrets.JIRA_URL }}
-          required_label: "approved-for-merge"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          jira-token: ${{ secrets.JIRA_TOKEN }}
+          jira-base-url: ${{ secrets.JIRA_URL }}
+          validate_issue_status: true
+          allowed_issue_statuses: "Approved"

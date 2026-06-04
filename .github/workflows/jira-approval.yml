@@ -15,6 +15,10 @@ jobs:
           JIRA_URL: ${{ secrets.JIRA_URL }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
+          echo "JIRA_USER length: ${#JIRA_USER}"
+          echo "JIRA_TOKEN length: ${#JIRA_TOKEN}"
+          echo "JIRA_URL length: ${#JIRA_URL}"
+
           JIRA_KEY=$(echo "$PR_TITLE" | grep -oE '[A-Z]+-[0-9]+' | head -1)
 
           if [ -z "$JIRA_KEY" ]; then

@@ -1,0 +1,47 @@
+name: Jira Approval Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check-jira-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Jira ticket status
+        env:
+          JIRA_USER: ${{ secrets.JIRA_USER }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "JIRA_USER length: ${#JIRA_USER}"
+          echo "JIRA_TOKEN length: ${#JIRA_TOKEN}"
+          echo "JIRA_URL length: ${#JIRA_URL}"
+
+          JIRA_KEY=$(echo "$PR_TITLE" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+
+          if [ -z "$JIRA_KEY" ]; then
+            echo "No Jira key found in PR title."
+            exit 1
+          fi
+
+          echo "Found Jira key: $JIRA_KEY"
+
+          RESPONSE=$(curl -s \
+            -u "$JIRA_USER:$JIRA_TOKEN" \
+            -H "Accept: application/json" \
+            "$JIRA_URL/rest/api/3/issue/$JIRA_KEY")
+
+          echo "Response: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['fields']['status']['name'])")
+
+          echo "Jira status: $STATUS"
+
+          if [ "$STATUS" != "Approved" ]; then
+            echo "Ticket $JIRA_KEY is not Approved (current: $STATUS). Merge blocked."
+            exit 1
+          fi
+
+          echo "Ticket $JIRA_KEY is Approved. Merge allowed."

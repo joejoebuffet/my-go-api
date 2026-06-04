@@ -8,11 +8,35 @@ jobs:
   check-jira-approval:
     runs-on: ubuntu-latest
     steps:
-      - name: Jira Lint
-        uses: cleartax/jira-lint@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          jira-token: ${{ secrets.JIRA_TOKEN }}
-          jira-base-url: ${{ secrets.JIRA_URL }}
-          validate_issue_status: true
-          allowed_issue_statuses: "Approved"
+      - name: Check Jira ticket status
+        env:
+          JIRA_USER: ${{ secrets.JIRA_USER }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Extract Jira key from PR title (e.g. SCRUM-1)
+          JIRA_KEY=$(echo "$PR_TITLE" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+
+          if [ -z "$JIRA_KEY" ]; then
+            echo "No Jira key found in PR title. Please include e.g. SCRUM-1"
+            exit 1
+          fi
+
+          echo "Found Jira key: $JIRA_KEY"
+
+          # Call Jira API
+          STATUS=$(curl -s \
+            -u "$JIRA_USER:$JIRA_TOKEN" \
+            -H "Accept: application/json" \
+            "$JIRA_URL/rest/api/3/issue/$JIRA_KEY" \
+            | grep -o '"name":"[^"]*"' | head -3 | tail -1 | cut -d'"' -f4)
+
+          echo "Jira status: $STATUS"
+
+          if [ "$STATUS" != "Approved" ]; then
+            echo "Ticket $JIRA_KEY is not Approved (current: $STATUS). Merge blocked."
+            exit 1
+          fi
+
+          echo "Ticket $JIRA_KEY is Approved. Merge allowed."

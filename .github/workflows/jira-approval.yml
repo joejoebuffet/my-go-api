@@ -15,22 +15,23 @@ jobs:
           JIRA_URL: ${{ secrets.JIRA_URL }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          # Extract Jira key from PR title (e.g. SCRUM-1)
           JIRA_KEY=$(echo "$PR_TITLE" | grep -oE '[A-Z]+-[0-9]+' | head -1)
 
           if [ -z "$JIRA_KEY" ]; then
-            echo "No Jira key found in PR title. Please include e.g. SCRUM-1"
+            echo "No Jira key found in PR title."
             exit 1
           fi
 
           echo "Found Jira key: $JIRA_KEY"
 
-          # Call Jira API
-          STATUS=$(curl -s \
+          RESPONSE=$(curl -s \
             -u "$JIRA_USER:$JIRA_TOKEN" \
             -H "Accept: application/json" \
-            "$JIRA_URL/rest/api/3/issue/$JIRA_KEY" \
-            | grep -o '"name":"[^"]*"' | head -3 | tail -1 | cut -d'"' -f4)
+            "$JIRA_URL/rest/api/3/issue/$JIRA_KEY")
+
+          echo "Response: $RESPONSE"
+
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['fields']['status']['name'])")
 
           echo "Jira status: $STATUS"
 

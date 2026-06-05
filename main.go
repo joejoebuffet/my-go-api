@@ -37,7 +37,7 @@ func main() {
 		dbHost,
 		dbPort,
 		dbUser,
-		dbPass
+		dbPass,
 	)
 
 	db, err := sql.Open("postgres", connStr)

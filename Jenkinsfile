@@ -2,6 +2,7 @@ pipeline {
     agent { label 'podman-node' }
     
     environment {
+        DB_CREDS = credentials('db-creds-dev')
         REGISTRY_URL = "ghcr.io" 
         IMAGE_NAME   = "joejoebuffet/my-go-api"                
     }

@@ -21,7 +21,8 @@ func main() {
 	// 2. Read environment variables passed from Podman/Jenkins/Local .env
 	dbHost := os.Getenv("DATABASE_HOST")
 	dbPort := os.Getenv("DATABASE_PORT")
-
+	dbUser := os.Getenv("DB_CREDS_USR")
+	dbPass := os.Getenv("DB_CREDS_PSW")
 	// 3. Set fallback defaults if they happen to be empty
 	if dbHost == "" {
 		dbHost = "10.36.168.15" // Your Windows PC IP
@@ -32,9 +33,11 @@ func main() {
 
 	// 4. Dynamically build the connection string including host and port
 	connStr := fmt.Sprintf(
-		"host=%s port=%s user=hello_api_user password=ApiSecurePass123! dbname=mdbase sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=mdbase sslmode=disable",
 		dbHost,
 		dbPort,
+		dbUser,
+		dbPass,
 	)
 
 	db, err := sql.Open("postgres", connStr)

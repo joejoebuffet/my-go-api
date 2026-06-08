@@ -2,10 +2,9 @@ pipeline {
     agent { label 'podman-node' }
     
     environment {
+        DB_CREDS = credentials('db-creds-dev')
         REGISTRY_URL = "ghcr.io" 
-        IMAGE_NAME   = "joejoebuffet/my-go-api"
-        DB_HOST      = "10.36.168.16"            
-        DB_PORT      = "5432"                 
+        IMAGE_NAME   = "joejoebuffet/my-go-api"                
     }
 
     stages {

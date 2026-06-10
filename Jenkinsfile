@@ -1,40 +1,30 @@
 pipeline {
-    agent { label 'podman-node' }
-    
+    agent { label 'built-in' }
+
     environment {
-        DB_CREDS = credentials('db-creds-dev')
-        REGISTRY_URL = "ghcr.io" 
-        IMAGE_NAME   = "joejoebuffet/my-go-api"                
+        GITHUB_PAT = credentials('github-pat')
     }
 
     stages {
-        stage('Deploy to Debian Target') {
+        stage('Deploy to K8s') {
             steps {
-                echo "Recycling container on Debian target..."
-                
-                sh "podman stop billing-api || true"
-                sh "podman rm billing-api || true"
-                
-                sh "podman pull ${REGISTRY_URL}/${IMAGE_NAME}:latest"
-                
-                // FIXED: Added JENKINS_NODE_COOKIE=dontKillMe and --restart=always
-                sh """
-                    export JENKINS_NODE_COOKIE=dontKillMe
-                    podman run -d --restart=always --name billing-api \
-                      -p 8080:8081 \
-                      -e DATABASE_HOST=${DB_HOST} \
-                      -e DATABASE_PORT=${DB_PORT} \
-                      ${REGISTRY_URL}/${IMAGE_NAME}:latest
-                """
+                echo "Deploying to Kubernetes..."
+                sshagent(['k8s-ssh']) {
+                    sh """
+                        ssh -o StrictHostKeyChecking=no willow@192.168.56.10 \
+                        'GITHUB_PAT=${GITHUB_PAT} bash /home/willow/deploy.sh'
+                    """
+                }
             }
         }
+    }
 
-        stage('Smoke Test') {
-            steps {
-                echo "Verifying API health status..."
-                sh "sleep 3" 
-                sh "curl -f http://localhost:8080/hello || exit 1"
-            }
+    post {
+        success {
+            echo "Deployment successful! ✅"
+        }
+        failure {
+            echo "Deployment failed! ❌"
         }
     }
 }

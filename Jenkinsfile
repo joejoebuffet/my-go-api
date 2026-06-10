@@ -15,6 +15,8 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     bat """
+                        icacls %SSH_KEY% /inheritance:r
+                        icacls %SSH_KEY% /grant:r "%USERNAME%:R"
                         ssh -i %SSH_KEY% -o StrictHostKeyChecking=no %SSH_USER%@192.168.56.10 "GITHUB_PAT=%GITHUB_PAT% bash /home/willow/deploy.sh"
                     """
                 }

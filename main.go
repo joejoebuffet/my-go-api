@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv" // Added for local .env handling
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -39,15 +40,22 @@ func main() {
 		dbUser,
 		dbPass,
 	)
-
+	fmt.Printf("DEBUG DB: host=%s port=%s user=%s\n", dbHost, dbPort, dbUser)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Failed to initialize postgres database: %v", err)
 	}
 	defer db.Close()
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		redisHost = "localhost"
+	}
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisHost + ":6379",
+	})
 	// Instantiate the controller with its dependency injection
-	helloCtrl := NewHelloController(db)
+	helloCtrl := NewHelloController(db, rdb)
 
 	router := gin.Default()
 

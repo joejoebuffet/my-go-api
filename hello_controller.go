@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
+
+var ctx = context.Background()
 
 type AccountStatusRequest struct {
 	AccountNo string `json:"accountNo"`
@@ -14,31 +19,38 @@ type AccountStatusRequest struct {
 }
 
 type HelloController struct {
-	DB *sql.DB // Replaces @Autowired private JdbcTemplate jdbcTemplate;
+	DB  *sql.DB // Replaces @Autowired private JdbcTemplate jdbcTemplate;
+	RDB *redis.Client
 }
 
-func NewHelloController(db *sql.DB) *HelloController {
-	return &HelloController{DB: db}
+func NewHelloController(db *sql.DB, rdb *redis.Client) *HelloController {
+	return &HelloController{DB: db, RDB: rdb}
 }
 
 // 1. GET /hello?accountNo=xxxx
 func (ctrl *HelloController) GetAccountHolder(c *gin.Context) {
-	accountNo := c.Query("accountNo") // Replaces @RequestParam("accountNo")
-	fmt.Printf("DEBUG INPUT: Received accountNo = [%s]\n", accountNo)
+	accountNo := c.Query("accountNo")
 
-	// Change this line:
+	// Check Redis first
+	cached, err := ctrl.RDB.Get(ctx, "account:"+accountNo).Result()
+	fmt.Printf("DEBUG REDIS: cached=%s, err=%v\n", cached, err)
+	if err == nil {
+		c.String(http.StatusOK, "Account Holder: "+cached)
+		return
+	}
+
+	// Cache miss — query DB
 	sqlQuery := "SELECT gl_segment FROM bill_media WHERE rec_id = '3' AND account_no = $1"
-
 	var holderName string
-	// QueryRow handles single-record lookups. Parameter types are handled implicitly by Go.
-	err := ctrl.DB.QueryRow(sqlQuery, accountNo).Scan(&holderName)
-
+	err = ctrl.DB.QueryRow(sqlQuery, accountNo).Scan(&holderName)
 	if err != nil {
-		fmt.Printf("DEBUG DATABASE ERROR: %v\n", err)
 		c.String(http.StatusOK, "Error: Account number "+accountNo+" not found.")
 		return
 	}
 
+	// Store in Redis with 2 min expiry
+	ctrl.RDB.Set(ctx, "account:"+accountNo, holderName, 2*time.Minute)
+	fmt.Printf("DEBUG DB HIT: account=%s\n", accountNo)
 	c.String(http.StatusOK, "Account Holder: "+holderName)
 }
 

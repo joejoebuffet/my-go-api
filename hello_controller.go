@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -82,44 +83,37 @@ func (ctrl *HelloController) UpdateAccountStatus(c *gin.Context) {
 // 3. POST /updateStatusBulk
 func (ctrl *HelloController) UpdateAccountStatusBulk(c *gin.Context) {
 	var payloadList []AccountStatusRequest
+
 	if err := c.ShouldBindJSON(&payloadList); err != nil {
 		c.String(http.StatusBadRequest, "FAILURE: Invalid payload format")
 		return
 	}
 
-	sqlQuery := "UPDATE cim_account SET status = $1 WHERE account_no = $2"
-	// Go does batch processing safely via Database Transactions (Tx) and Prepared Statements
-	tx, err := ctrl.DB.Begin()
+	// Convert the payload to JSON for PostgreSQL
+	jsonPayload, err := json.Marshal(payloadList)
 	if err != nil {
-		c.String(http.StatusOK, "FAILURE: Batch transaction start error: "+err.Error())
+		c.String(http.StatusOK, "FAILURE: JSON marshal error: "+err.Error())
 		return
 	}
-	// If anything crashes mid-loop, safely roll back the whole batch
-	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(sqlQuery)
+	var totalRowsUpdated int
+
+	// Call the PostgreSQL function
+	err = ctrl.DB.QueryRow(
+		"SELECT update_account_status_bulk($1::jsonb)",
+		jsonPayload,
+	).Scan(&totalRowsUpdated)
+
 	if err != nil {
-		c.String(http.StatusOK, "FAILURE: Batch preparation error: "+err.Error())
-		return
-	}
-	defer stmt.Close()
-
-	totalRowsUpdated := 0
-	for _, recordItem := range payloadList {
-		result, err := stmt.Exec(recordItem.Status, recordItem.AccountNo)
-		if err != nil {
-			c.String(http.StatusOK, "FAILURE: Batch database error: "+err.Error())
-			return
-		}
-		rows, _ := result.RowsAffected()
-		totalRowsUpdated += int(rows)
-	}
-
-	// Commit the entire transaction block to the DB
-	if err := tx.Commit(); err != nil {
-		c.String(http.StatusOK, "FAILURE: Transaction commit failed: "+err.Error())
+		c.String(http.StatusOK, "FAILURE: Database error: "+err.Error())
 		return
 	}
 
-	c.String(http.StatusOK, fmt.Sprintf("SUCCESS: Record-batch complete. Total records updated: %d", totalRowsUpdated))
+	c.String(
+		http.StatusOK,
+		fmt.Sprintf(
+			"SUCCESS: Record-batch complete. Total records updated: %d",
+			totalRowsUpdated,
+		),
+	)
 }
